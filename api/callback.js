@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
-const sessions = new Map();
 
+// Store tokens in the redirect URL itself (encrypted in query params)
 module.exports = async (req, res) => {
   const { code, state, realmId, error } = req.query;
 
@@ -18,8 +18,11 @@ module.exports = async (req, res) => {
     const redirectUri = process.env.QUICKBOOKS_REDIRECT_URI;
 
     if (!clientId || !clientSecret || !redirectUri) {
+      console.error('Missing environment variables:', { clientId: !!clientId, clientSecret: !!clientSecret, redirectUri: !!redirectUri });
       throw new Error('Server configuration error');
     }
+
+    console.log('🔄 Exchanging authorization code for tokens...');
 
     const tokenResponse = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
       method: 'POST',
@@ -37,45 +40,27 @@ module.exports = async (req, res) => {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error('Token exchange failed:', tokenResponse.status, errorText);
+      console.error('❌ Token exchange failed:', tokenResponse.status, errorText);
       throw new Error(`Token exchange failed: ${tokenResponse.status}`);
     }
 
     const tokens = await tokenResponse.json();
-    const sessionId = generateSessionId();
     
-    sessions.set(sessionId, {
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      expiresIn: tokens.expires_in,
-      realmId: realmId,
-      timestamp: Date.now()
+    console.log('✅ OAuth successful!');
+
+    // Encode tokens in URL (they'll be passed directly to the app)
+    const params = new URLSearchParams({
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_in: tokens.expires_in.toString(),
+      realm_id: realmId,
+      state: state
     });
 
-    cleanupOldSessions();
-    console.log('✅ OAuth successful, session:', sessionId);
-
-    return res.redirect(`timerview://oauth-callback?session=${sessionId}&realmId=${realmId}&state=${state}`);
+    return res.redirect(`timerview://oauth-callback?${params.toString()}`);
 
   } catch (error) {
-    console.error('OAuth callback error:', error);
+    console.error('❌ OAuth callback error:', error);
     return res.redirect(`timerview://oauth-callback?error=${encodeURIComponent(error.message)}`);
   }
 };
-
-function generateSessionId() {
-  return Array.from(crypto.getRandomValues(new Uint8Array(16)))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-function cleanupOldSessions() {
-  const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-  for (const [sessionId, data] of sessions.entries()) {
-    if (data.timestamp < fiveMinutesAgo) {
-      sessions.delete(sessionId);
-    }
-  }
-}
-
-module.exports.sessions = sessions;
