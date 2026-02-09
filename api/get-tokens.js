@@ -1,12 +1,6 @@
 const { sessions } = require('./callback');
 
-module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
+module.exports = (req, res) => {
   const { session } = req.query;
 
   if (!session) {
