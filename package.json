@@ -1,0 +1,12 @@
+{
+  "name": "timerview-oauth-server",
+  "version": "1.0.0",
+  "description": "OAuth server for TimerView QuickBooks integration",
+  "main": "api/callback.js",
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
