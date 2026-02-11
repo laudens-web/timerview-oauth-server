@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
 
-// Store tokens in the redirect URL itself (encrypted in query params)
+// Pass tokens directly in redirect URL (no session storage needed)
 module.exports = async (req, res) => {
   const { code, state, realmId, error } = req.query;
 
@@ -48,7 +48,7 @@ module.exports = async (req, res) => {
     
     console.log('✅ OAuth successful!');
 
-    // Encode tokens in URL (they'll be passed directly to the app)
+    // Pass tokens directly in redirect URL
     const params = new URLSearchParams({
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
